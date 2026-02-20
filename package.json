@@ -8,10 +8,10 @@
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "node dist/src/main.js",
+    "start": "npx prisma migrate deploy && node dist/src/main.js",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/src/main.js",
+    "start:prod": "npx prisma migrate deploy && node dist/src/main.js",
     "postinstall": "npx prisma generate",
     "gcp-build": "npm run build",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
