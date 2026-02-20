@@ -6,10 +6,22 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as fs from 'fs';
 import * as path from 'path';
+import { execSync } from 'child_process';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   logger.log('⏳ Starting application...');
+
+  // Auto-run Prisma migrations on every startup
+  if (process.env.DATABASE_URL) {
+    try {
+      logger.log('🔄 Running Prisma migrations...');
+      execSync('npx prisma migrate deploy', { stdio: 'inherit' });
+      logger.log('✅ Prisma migrations applied');
+    } catch (e) {
+      logger.warn(`⚠️ Migration warning: ${e}`);
+    }
+  }
 
   const app = await NestFactory.create(AppModule, {
     logger: ['log', 'warn', 'error'],
