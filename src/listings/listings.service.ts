@@ -1,6 +1,7 @@
-import { Injectable, InternalServerErrorException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { BookingStatus } from '@prisma/client';
 
 import { PrismaService } from 'prisma/prisma.service';
 import { CreatePropertyDto } from './dto/create-property.dto';
@@ -8,6 +9,7 @@ import { UpdatePropertyDto } from './dto/update-property.dto';
 import { CreateHotelDto } from './dto/create-hotel.dto';
 import { UpdateHotelDto } from './dto/update-hotel.dto';
 import { CreateRoomDto } from './dto/create-room.dto';
+import { CreateHotelBookingDto } from './dto/create-hotel-booking.dto';
 
 @Injectable()
 export class ListingService {
@@ -287,6 +289,137 @@ export class ListingService {
 
   async getRoomById(id: number) {
     return this.prisma.room.findUnique({ where: { id } });
+  }
+
+  async createHotelBooking(data: CreateHotelBookingDto, userId: number) {
+    const checkIn = new Date(data.checkIn);
+    const checkOut = new Date(data.checkOut);
+
+    if (Number.isNaN(checkIn.getTime()) || Number.isNaN(checkOut.getTime())) {
+      throw new BadRequestException('Invalid check-in or check-out date');
+    }
+
+    if (checkOut <= checkIn) {
+      throw new BadRequestException('Check-out must be after check-in');
+    }
+
+    if (!data.rooms || data.rooms.length === 0) {
+      throw new BadRequestException('At least one room is required');
+    }
+
+    const roomQuantityMap = new Map<number, number>();
+    for (const roomSelection of data.rooms) {
+      const prevQty = roomQuantityMap.get(roomSelection.roomId) ?? 0;
+      roomQuantityMap.set(roomSelection.roomId, prevQty + roomSelection.quantity);
+    }
+
+    const hotel = await this.prisma.hotel.findUnique({
+      where: { id: data.hotelId },
+      include: { rooms: true },
+    });
+
+    if (!hotel) {
+      throw new NotFoundException('Hotel not found');
+    }
+
+    const roomById = new Map(hotel.rooms.map((room) => [room.id, room]));
+    const selectedRoomIds = [...roomQuantityMap.keys()];
+    const invalidRoomIds = selectedRoomIds.filter((roomId) => !roomById.has(roomId));
+
+    if (invalidRoomIds.length > 0) {
+      throw new BadRequestException('One or more selected rooms are invalid for this hotel');
+    }
+
+    const overlappingBookings = await this.prisma.booking.findMany({
+      where: {
+        roomId: { in: selectedRoomIds },
+        status: BookingStatus.ACTIVE,
+        checkIn: { lt: checkOut },
+        checkOut: { gt: checkIn },
+      },
+      select: { roomId: true },
+    });
+
+    if (overlappingBookings.length > 0) {
+      const unavailableRoomIds = overlappingBookings
+        .map((booking) => booking.roomId)
+        .filter((roomId): roomId is number => roomId !== null);
+      const unavailableTitles = unavailableRoomIds
+        .map((roomId) => roomById.get(roomId)?.title)
+        .filter((title): title is string => !!title);
+
+      throw new BadRequestException(
+        unavailableTitles.length > 0
+          ? `Selected room(s) are not available: ${unavailableTitles.join(', ')}`
+          : 'Some selected rooms are not available for the selected dates',
+      );
+    }
+
+    const nights = Math.ceil(
+      (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    if (nights <= 0) {
+      throw new BadRequestException('Selected stay duration is invalid');
+    }
+
+    let totalPrice = 0;
+    let totalRooms = 0;
+    const bookingData: {
+      userId: number;
+      hotelId: number;
+      roomId: number;
+      checkIn: Date;
+      checkOut: Date;
+      totalPrice: number;
+      status: BookingStatus;
+    }[] = [];
+
+    for (const roomId of selectedRoomIds) {
+      const room = roomById.get(roomId)!;
+      const quantity = roomQuantityMap.get(roomId)!;
+      const roomTotal = Number(room.price) * nights;
+
+      totalPrice += roomTotal * quantity;
+      totalRooms += quantity;
+
+      for (let i = 0; i < quantity; i++) {
+        bookingData.push({
+          userId,
+          hotelId: hotel.id,
+          roomId,
+          checkIn,
+          checkOut,
+          totalPrice: roomTotal,
+          status: BookingStatus.PENDING,
+        });
+      }
+    }
+
+    const bookings = await this.prisma.$transaction(
+      bookingData.map((payload) =>
+        this.prisma.booking.create({
+          data: payload,
+          include: {
+            room: { select: { id: true, title: true, price: true } },
+          },
+        }),
+      ),
+    );
+
+    return {
+      success: true,
+      message: 'Hotel booking created successfully',
+      bookingGroup: {
+        hotelId: hotel.id,
+        hotelTitle: hotel.title,
+        checkIn,
+        checkOut,
+        nights,
+        totalRooms,
+        totalPrice,
+        bookings,
+      },
+    };
   }
 
   // ─── AI Property Analysis ─────────────────────────────

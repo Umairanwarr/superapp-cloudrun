@@ -25,6 +25,7 @@ import { GetUser } from 'src/auth/get-user.decorator';
 import type { User } from '@prisma/client';
 import { CreateHotelDto } from './dto/create-hotel.dto';
 import { UpdateHotelDto } from './dto/update-hotel.dto';
+import { CreateHotelBookingDto } from './dto/create-hotel-booking.dto';
 import type { Response } from 'express';
 
 @Controller('listing')
@@ -406,6 +407,15 @@ export class ListingController {
       res.status(404).end();
     });
     fileData.stream.pipe(res);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('hotel-bookings')
+  createHotelBooking(
+    @Body() dto: CreateHotelBookingDto,
+    @GetUser() user: User,
+  ) {
+    return this.listingService.createHotelBooking(dto, user.id);
   }
 
   // ─── Avatar image proxy (GCS bucket is private) ───────
