@@ -1,9 +1,12 @@
+-- CreateEnum
+CREATE TYPE "ForumType" AS ENUM ('FORUM', 'REVIEW', 'TIPS');
+
 -- CreateTable
 CREATE TABLE "Forum" (
     "id" SERIAL NOT NULL,
     "title" TEXT NOT NULL,
     "content" TEXT NOT NULL,
-    "type" TEXT NOT NULL DEFAULT 'FORUM',
+    "type" "ForumType" NOT NULL DEFAULT 'FORUM',
     "link" TEXT,
     "userId" INTEGER NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
