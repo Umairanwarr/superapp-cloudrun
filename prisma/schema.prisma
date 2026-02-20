@@ -1,0 +1,333 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------- ENUMS ----------------
+
+enum Role {
+  USER
+  ADMIN
+  HOTEL_OWNER
+  LAND_OWNER
+  DRIVER
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum Currency {
+  USD
+  EUR
+  PKR
+}
+
+enum Language {
+  ENGLISH
+  URDU
+  ARABIC
+}
+
+enum PropertyType {
+  VILLA
+  BUNGALOW
+  PALACE
+}
+
+enum ListingType {
+  FOR_SALE
+  FOR_RENT
+}
+
+enum ForumType {
+  FORUM
+  REVIEW
+  TIPS
+}
+
+enum BookingStatus {
+  PENDING
+  ACTIVE
+  CANCELLED
+  COMPLETED
+}
+
+// ---------------- MODELS ----------------
+
+model User {
+  id       Int     @id @default(autoincrement())
+  email    String  @unique
+  phone    String? @unique
+  password String
+
+  firstName String?
+  lastName  String?
+  fullName  String?
+  avatar    String?
+
+  role     Role     @default(USER)
+  gender   Gender   @default(MALE)
+  currency Currency @default(USD)
+  language Language @default(ENGLISH)
+
+  latitude  Float?
+  longitude Float?
+  address   String?
+
+  fcmToken String?
+
+  isProfileComplete Boolean @default(false)
+  isActive          Boolean @default(true)
+
+  // Relations
+  properties Property[]
+  hotels     Hotel[]
+  reviews    Review[]
+  bookings   Booking[]
+  wishlists  Wishlist[]
+  forums     Forum[]
+  forumLikes ForumLike[]
+  forumComments ForumComment[]
+
+  Message_Message_receiverIdToUser Message[] @relation("Message_receiverIdToUser")
+  messages                         Message[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([role])
+}
+
+model Message {
+  id         Int      @id @default(autoincrement())
+  content    String
+  senderId   Int
+  receiverId Int
+  propertyId Int?
+  createdAt  DateTime @default(now())
+  isRead     Boolean  @default(false)
+
+  User_Message_receiverIdToUser User      @relation("Message_receiverIdToUser", fields: [receiverId], references: [id])
+  sender                        User      @relation(fields: [senderId], references: [id])
+  property                      Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([propertyId])
+}
+
+model Property {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String
+  amenities   String[]
+  images      String[]
+
+  latitude  Float?
+  longitude Float?
+  address   String?
+
+  price     Decimal  @db.Decimal(10, 2)
+  currency  Currency @default(USD)
+  promoCode String?
+
+  listingType ListingType @default(FOR_SALE)
+
+  rooms     Int?
+  bathrooms Int?
+  area      Float?
+  type      PropertyType?
+
+  neighborhoodInsights String[]
+
+  // Relation
+  owner   User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId Int
+
+  reviews   Review[]
+  bookings  Booking[]
+  wishlists Wishlist[]
+  messages  Message[]
+
+  isActive  Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+}
+
+model Hotel {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String
+  amenities   String[]
+  images      String[]
+
+  latitude  Float?
+  longitude Float?
+  address   String?
+
+  owner   User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId Int
+
+  rooms     Room[]
+  reviews   Review[]
+  bookings  Booking[]
+  wishlists Wishlist[]
+
+  isActive  Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+}
+
+model Room {
+  id     Int      @id @default(autoincrement())
+  title  String
+  area   Float?
+  image  String?
+  price  Decimal  @db.Decimal(10, 2)
+  extras String[]
+
+  hotel   Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  hotelId Int
+
+  bookings Booking[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([hotelId])
+}
+
+model Review {
+  id      Int     @id @default(autoincrement())
+  rating  Int
+  comment String?
+
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId Int
+
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId Int?
+
+  hotel   Hotel? @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  hotelId Int?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([propertyId])
+  @@index([hotelId])
+}
+
+model Booking {
+  id Int @id @default(autoincrement())
+
+  // Who booked
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId Int
+
+  // What is booked (only one should be used)
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId Int?
+
+  hotel   Hotel? @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  hotelId Int?
+
+  room   Room? @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  roomId Int?
+
+  checkIn    DateTime
+  checkOut   DateTime
+  totalPrice Decimal  @db.Decimal(10, 2)
+
+  status BookingStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([propertyId])
+  @@index([hotelId])
+  @@index([roomId])
+}
+
+model Wishlist {
+  id Int @id @default(autoincrement())
+
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId Int
+
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId Int?
+
+  hotel   Hotel? @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  hotelId Int?
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, propertyId])
+  @@unique([userId, hotelId])
+  @@index([userId])
+  @@index([propertyId])
+  @@index([hotelId])
+}
+
+model Forum {
+  id        Int      @id @default(autoincrement())
+  title     String
+  content   String
+  type      ForumType @default(FORUM)
+  link      String?
+
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId Int
+
+  likes     ForumLike[]
+  comments  ForumComment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([type])
+}
+
+model ForumLike {
+  id     Int  @id @default(autoincrement())
+  forum  Forum @relation(fields: [forumId], references: [id], onDelete: Cascade)
+  forumId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId Int
+
+  @@unique([forumId, userId])
+  @@index([forumId])
+  @@index([userId])
+}
+
+model ForumComment {
+  id        Int      @id @default(autoincrement())
+  content   String
+
+  forum     Forum    @relation(fields: [forumId], references: [id], onDelete: Cascade)
+  forumId   Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([forumId])
+  @@index([userId])
+}
