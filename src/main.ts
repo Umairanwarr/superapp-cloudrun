@@ -12,17 +12,13 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
   logger.log('⏳ Starting application...');
 
-  // Auto-sync database schema on every startup.
-  // • Development: `prisma db push` — applies any schema changes instantly, no migration files required.
-  // • Production:  `prisma migrate deploy` — applies only the committed migration files (safe, auditable).
+  // Auto-sync database schema on every startup using `db push`.
+  // This pushes the schema.prisma directly to the database without needing migration files.
+  // Perfect for GitHub → Cloud Run deployments: just update schema.prisma, push, and it auto-syncs.
   if (process.env.DATABASE_URL) {
-    const isProd = process.env.NODE_ENV === 'production';
-    const migrateCmd = isProd
-      ? 'npx prisma migrate deploy'
-      : 'npx prisma db push --accept-data-loss --skip-generate';
     try {
-      logger.log(`🔄 Syncing database schema (${isProd ? 'migrate deploy' : 'db push'})...`);
-      execSync(migrateCmd, { stdio: 'inherit' });
+      logger.log('🔄 Syncing database schema (prisma db push)...');
+      execSync('npx prisma db push --skip-generate', { stdio: 'inherit' });
       logger.log('✅ Database schema is up to date');
     } catch (e) {
       logger.warn(`⚠️ Schema sync warning: ${e}`);
