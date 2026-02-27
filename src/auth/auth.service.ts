@@ -3,6 +3,7 @@ import {
   Injectable,
   UnauthorizedException,
   BadRequestException,
+  ConsoleLogger,
 } from '@nestjs/common';
 import { RegisterDto } from './dto/register.dto';
 import * as bcrypt from 'bcrypt';
@@ -16,7 +17,10 @@ import { MailerService } from '../mailer/mailer.service';
 @Injectable()
 export class AuthService {
   // Store OTPs in memory (in production, use Redis)
-  private otpStore = new Map<string, { otp: string; expiresAt: Date; userData?: any }>();
+  private otpStore = new Map<
+    string,
+    { otp: string; expiresAt: Date; userData?: any }
+  >();
 
   constructor(
     private prisma: PrismaService,
@@ -205,7 +209,9 @@ export class AuthService {
     const name = decoded.name ?? '';
     const nameParts = name.trim().split(' ').filter(Boolean);
     const firstName = decoded.given_name ?? nameParts[0] ?? null;
-    const lastName = decoded.family_name ?? (nameParts.length > 1 ? nameParts.slice(1).join(' ') : null);
+    const lastName =
+      decoded.family_name ??
+      (nameParts.length > 1 ? nameParts.slice(1).join(' ') : null);
     const avatar = decoded.picture ?? null;
 
     const existingUser = await this.prisma.user.findUnique({
@@ -218,7 +224,9 @@ export class AuthService {
         data: {
           email,
           password: await bcrypt.hash(
-            await bcrypt.genSalt(10).then((salt) => `${dto.provider}:${decoded.uid}:${salt}`),
+            await bcrypt
+              .genSalt(10)
+              .then((salt) => `${dto.provider}:${decoded.uid}:${salt}`),
             10,
           ),
           firstName,

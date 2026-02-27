@@ -33,8 +33,14 @@ export class AuthController {
   }
 
   @Post('reset-password')
-  resetPassword(@Body() body: { email: string; otp: string; newPassword: string }) {
-    return this.authService.resetPassword(body.email, body.otp, body.newPassword);
+  resetPassword(
+    @Body() body: { email: string; otp: string; newPassword: string },
+  ) {
+    return this.authService.resetPassword(
+      body.email,
+      body.otp,
+      body.newPassword,
+    );
   }
 
   @Post('login')

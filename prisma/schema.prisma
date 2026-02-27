@@ -59,6 +59,26 @@ enum BookingStatus {
   COMPLETED
 }
 
+enum JobUrgency {
+  URGENT
+  NORMAL
+}
+
+enum JobStatus {
+  QUEUED
+  PENDING
+  COMPLETED
+  CANCELLED
+  APPROVED
+}
+
+enum JobReviewStatus {
+  AWAITING
+  IN_PROGRESS
+  REVIEWED
+  FLAGGED
+}
+
 // ---------------- MODELS ----------------
 
 model User {
@@ -95,6 +115,10 @@ model User {
   forums     Forum[]
   forumLikes ForumLike[]
   forumComments ForumComment[]
+
+  ownedJobs       Job[]           @relation("JobOwner")
+  jobAssignments  JobAssignment[] @relation("JobApplier")
+  jobReviews      JobReview[]     @relation("JobCompleter")
 
   Message_Message_receiverIdToUser Message[] @relation("Message_receiverIdToUser")
   messages                         Message[]
@@ -331,3 +355,59 @@ model ForumComment {
   @@index([forumId])
   @@index([userId])
 }
+
+model Job {
+  id          Int        @id @default(autoincrement())
+  title       String
+  description String
+  urgency     JobUrgency @default(NORMAL)
+  status      JobStatus  @default(QUEUED)
+  budget      Float?                               
+
+  ownerId     Int
+  owner       User       @relation("JobOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  assignments JobAssignment[]
+  reviews     JobReview[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([ownerId])
+  @@index([status])
+}
+
+model JobAssignment {
+  id        Int      @id @default(autoincrement())
+  
+  jobId     Int
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  
+  applierId Int
+  applier   User     @relation("JobApplier", fields: [applierId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt 
+
+  @@index([jobId])
+  @@index([applierId])
+}
+
+model JobReview {
+  id          Int             @id @default(autoincrement())
+  
+  status      JobReviewStatus @default(AWAITING)
+  feedback    String?                   
+  
+  jobId       Int
+  job         Job             @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  
+  completerId Int
+  completer   User            @relation("JobCompleter", fields: [completerId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([jobId])
+}
+

@@ -11,6 +11,7 @@ import { StorageModule } from './storage/storage.module';
 import { WishlistModule } from './wishlist/wishlist.module';
 import { ReviewModule } from './review/review.module';
 import { ForumModule } from './forum/forum.module';
+import { AdminModule } from './admin/admin.module';
 
 @Global()
 @Module({
@@ -25,6 +26,7 @@ import { ForumModule } from './forum/forum.module';
     WishlistModule,
     ReviewModule,
     ForumModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],
