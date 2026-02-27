@@ -6,6 +6,7 @@ import {
   IsNumber,
   Min,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { JobUrgency } from '@prisma/client';
 
 export class CreateJobDto {
@@ -23,8 +24,19 @@ export class CreateJobDto {
   })
   urgency?: JobUrgency;
 
+  @IsNotEmpty({ message: 'Budget is required' })
+  @IsNumber()
+  @Type(() => Number)
+  @Min(1, { message: 'Budget must be a positive number' })
+  budget: number;
+
   @IsOptional()
   @IsNumber()
-  @Min(1, { message: 'Budget must be a positive number' })
-  budget?: number;
+  @Type(() => Number)
+  propertyId?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  hotelId?: number;
 }

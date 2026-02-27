@@ -35,6 +35,12 @@ export class ListingController {
     private readonly storageService: StorageService,
   ) {}
 
+  @UseGuards(AuthGuard('jwt'))
+  @Get('owner-summary')
+  getOwnerSummary(@GetUser() user: User) {
+    return this.listingService.getOwnerListingSummary(user.id);
+  }
+
   // ─── Properties ────────────────────────────────────────
 
   @UseGuards(AuthGuard('jwt'))

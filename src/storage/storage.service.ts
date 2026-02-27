@@ -48,9 +48,13 @@ export class StorageService {
 
     return new Promise((resolve, reject) => {
       blobStream.on('error', (err) => reject(err));
-      blobStream.on('finish', () => {
-        const publicUrl = `https://storage.googleapis.com/${this.bucket}/${filename}`;
-        resolve(publicUrl);
+      blobStream.on('finish', async () => {
+        // Generate a signed URL that expires in 7 days
+        const [signedUrl] = await blob.getSignedUrl({
+          action: 'read',
+          expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
+        });
+        resolve(signedUrl);
       });
       blobStream.end(file.buffer);
     });

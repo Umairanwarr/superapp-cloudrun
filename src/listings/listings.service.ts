@@ -22,6 +22,19 @@ export class ListingService {
     private configService: ConfigService,
   ) { }
 
+  async getOwnerListingSummary(ownerId: number) {
+    const [activeProperties, activeHotels] = await Promise.all([
+      this.prisma.property.count({ where: { ownerId, isActive: true } }),
+      this.prisma.hotel.count({ where: { ownerId, isActive: true } }),
+    ]);
+
+    return {
+      activeProperties,
+      activeHotels,
+      activeListings: activeProperties + activeHotels,
+    };
+  }
+
   // ─── Properties ────────────────────────────────────────
   async createProperty(data: CreatePropertyDto, uId: number) {
     try {

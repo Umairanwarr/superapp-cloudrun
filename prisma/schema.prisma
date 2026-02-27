@@ -15,6 +15,7 @@ enum Role {
   HOTEL_OWNER
   LAND_OWNER
   DRIVER
+  STAFF
 }
 
 enum Gender {
@@ -52,6 +53,13 @@ enum ForumType {
   TIPS
 }
 
+enum ExpenseCategory {
+  MAINTENANCE
+  UTILITIES
+  TAX
+  OTHER
+}
+
 enum BookingStatus {
   PENDING
   ACTIVE
@@ -67,9 +75,12 @@ enum JobUrgency {
 enum JobStatus {
   QUEUED
   PENDING
+  IN_PROGRESS
   COMPLETED
   CANCELLED
   APPROVED
+  AWAITING_REVIEW
+  REJECTED
 }
 
 enum JobReviewStatus {
@@ -115,10 +126,14 @@ model User {
   forums     Forum[]
   forumLikes ForumLike[]
   forumComments ForumComment[]
+  expenses   Expense[]
 
   ownedJobs       Job[]           @relation("JobOwner")
   jobAssignments  JobAssignment[] @relation("JobApplier")
   jobReviews      JobReview[]     @relation("JobCompleter")
+  staffProfile    Staff?          @relation("StaffMember")
+  iotDevices      IoTDevice[]
+  notifications   Notification[]
 
   Message_Message_receiverIdToUser Message[] @relation("Message_receiverIdToUser")
   messages                         Message[]
@@ -127,6 +142,24 @@ model User {
   updatedAt DateTime @updatedAt
 
   @@index([role])
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  title     String
+  message   String
+  type      String   @default("INFO")
+  isRead    Boolean  @default(false)
+  
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  relatedId  Int?    // e.g. Job ID
+  relatedType String? // e.g. "JOB"
+
+  createdAt DateTime @default(now())
+  
+  @@index([userId])
 }
 
 model Message {
@@ -179,6 +212,10 @@ model Property {
   bookings  Booking[]
   wishlists Wishlist[]
   messages  Message[]
+  expenses  Expense[]
+  staff     Staff[]
+  jobs      Job[]
+  iotDevices IoTDevice[]
 
   isActive  Boolean  @default(true)
 
@@ -206,6 +243,10 @@ model Hotel {
   reviews   Review[]
   bookings  Booking[]
   wishlists Wishlist[]
+  expenses  Expense[]
+  staff     Staff[]
+  jobs      Job[]
+  iotDevices IoTDevice[]
 
   isActive  Boolean  @default(true)
 
@@ -356,6 +397,25 @@ model ForumComment {
   @@index([userId])
 }
 
+model Staff {
+  id         Int       @id @default(autoincrement())
+
+  user       User      @relation("StaffMember", fields: [userId], references: [id], onDelete: Cascade)
+  userId     Int       @unique
+
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  propertyId Int?
+
+  hotel      Hotel?    @relation(fields: [hotelId], references: [id], onDelete: SetNull)
+  hotelId    Int?
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([propertyId])
+  @@index([hotelId])
+}
+
 model Job {
   id          Int        @id @default(autoincrement())
   title       String
@@ -366,6 +426,16 @@ model Job {
 
   ownerId     Int
   owner       User       @relation("JobOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  property    Property?  @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  propertyId  Int?
+
+  hotel       Hotel?     @relation(fields: [hotelId], references: [id], onDelete: SetNull)
+  hotelId     Int?
+
+  beforeImage String?
+  afterImage  String?
+  rejectionReason String?
 
   assignments JobAssignment[]
   reviews     JobReview[]
@@ -411,3 +481,51 @@ model JobReview {
   @@index([jobId])
 }
 
+model Expense {
+  id          Int             @id @default(autoincrement())
+  title       String
+  description String?
+  amount      Decimal         @db.Decimal(10, 2)
+  category    ExpenseCategory @default(OTHER)
+  date        DateTime        @default(now())
+  receiptUrl  String?
+
+  user   User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId Int
+
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  propertyId Int?
+
+  hotel   Hotel? @relation(fields: [hotelId], references: [id], onDelete: SetNull)
+  hotelId Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([propertyId])
+  @@index([hotelId])
+  @@index([category])
+}
+
+model IoTDevice {
+  id        Int      @id @default(autoincrement())
+  name      String
+  status    String   @default("Normal")
+  
+  ownerId   Int
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  location  String?  // Custom location string or Property/Hotel name
+  
+  propertyId Int?
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+
+  hotelId    Int?
+  hotel      Hotel?    @relation(fields: [hotelId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+}

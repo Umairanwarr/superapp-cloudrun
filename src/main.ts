@@ -12,14 +12,20 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
   logger.log('⏳ Starting application...');
 
-  // Auto-run Prisma migrations on every startup
+  // Auto-sync database schema on every startup.
+  // • Development: `prisma db push` — applies any schema changes instantly, no migration files required.
+  // • Production:  `prisma migrate deploy` — applies only the committed migration files (safe, auditable).
   if (process.env.DATABASE_URL) {
+    const isProd = process.env.NODE_ENV === 'production';
+    const migrateCmd = isProd
+      ? 'npx prisma migrate deploy'
+      : 'npx prisma db push --accept-data-loss --skip-generate';
     try {
-      logger.log('🔄 Running Prisma migrations...');
-      execSync('npx prisma migrate deploy', { stdio: 'inherit' });
-      logger.log('✅ Prisma migrations applied');
+      logger.log(`🔄 Syncing database schema (${isProd ? 'migrate deploy' : 'db push'})...`);
+      execSync(migrateCmd, { stdio: 'inherit' });
+      logger.log('✅ Database schema is up to date');
     } catch (e) {
-      logger.warn(`⚠️ Migration warning: ${e}`);
+      logger.warn(`⚠️ Schema sync warning: ${e}`);
     }
   }
 

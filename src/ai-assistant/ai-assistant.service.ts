@@ -71,6 +71,38 @@ export class AiAssistantService {
               required: ['hotelName'],
             },
           },
+          {
+            name: 'getStaffMembers',
+            description: 'Get a list of staff members.',
+            parameters: {
+              type: 'OBJECT',
+              properties: {},
+            },
+          },
+          {
+            name: 'getStaffCompletedJobs',
+            description:
+              'Get a list of completed jobs for a specific staff member.',
+            parameters: {
+              type: 'OBJECT',
+              properties: {
+                staffName: {
+                  type: 'STRING',
+                  description:
+                    'The name of the staff member (first name or last name).',
+                },
+              },
+              required: ['staffName'],
+            },
+          },
+          {
+            name: 'getAvailableJobs',
+            description: 'Get a list of currently available (queued) jobs.',
+            parameters: {
+              type: 'OBJECT',
+              properties: {},
+            },
+          },
         ],
       },
     ];
@@ -230,6 +262,34 @@ export class AiAssistantService {
               response: { prediction: chartData },
             },
           });
+        } else if (call.name === 'getStaffMembers') {
+          console.log(`Calling getStaffMembers`);
+          const staff = await this.getStaffMembers();
+          functionResponses.push({
+            functionResponse: {
+              name: 'getStaffMembers',
+              response: { staff },
+            },
+          });
+        } else if (call.name === 'getStaffCompletedJobs') {
+          const args = call.args as any;
+          console.log(`Calling getStaffCompletedJobs for:`, args.staffName);
+          const jobs = await this.getStaffCompletedJobs(args.staffName);
+          functionResponses.push({
+            functionResponse: {
+              name: 'getStaffCompletedJobs',
+              response: { jobs },
+            },
+          });
+        } else if (call.name === 'getAvailableJobs') {
+          console.log(`Calling getAvailableJobs`);
+          const jobs = await this.getAvailableJobs();
+          functionResponses.push({
+            functionResponse: {
+              name: 'getAvailableJobs',
+              response: { jobs },
+            },
+          });
         }
       }
 
@@ -373,5 +433,55 @@ export class AiAssistantService {
       ],
       xLabels: ['Jan 15', 'Jan 22', 'Jan 29', 'Feb 5', 'Feb 12', 'Feb 19'],
     };
+  }
+
+  private async getStaffMembers() {
+    const staff = await this.prisma.user.findMany({
+      where: { role: 'STAFF' },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        fullName: true,
+        email: true,
+        avatar: true,
+      },
+    });
+    return staff;
+  }
+
+  private async getStaffCompletedJobs(staffName: string) {
+    const jobs = await this.prisma.job.findMany({
+      where: {
+        status: { in: ['COMPLETED', 'APPROVED'] },
+        assignments: {
+          some: {
+            applier: {
+              OR: [
+                { firstName: { contains: staffName, mode: 'insensitive' } },
+                { lastName: { contains: staffName, mode: 'insensitive' } },
+                { fullName: { contains: staffName, mode: 'insensitive' } },
+              ],
+            },
+          },
+        },
+      },
+      include: {
+        property: { select: { title: true } },
+        hotel: { select: { title: true } },
+      },
+    });
+    return jobs;
+  }
+
+  private async getAvailableJobs() {
+    const jobs = await this.prisma.job.findMany({
+      where: { status: 'QUEUED' },
+      include: {
+        property: { select: { title: true } },
+        hotel: { select: { title: true } },
+      },
+    });
+    return jobs;
   }
 }

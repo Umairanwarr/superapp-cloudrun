@@ -12,6 +12,10 @@ import { WishlistModule } from './wishlist/wishlist.module';
 import { ReviewModule } from './review/review.module';
 import { ForumModule } from './forum/forum.module';
 import { AdminModule } from './admin/admin.module';
+import { ExpensesModule } from './expenses/expenses.module';
+import { StaffModule } from './staff/staff.module';
+import { IoTModule } from './iot/iot.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Global()
 @Module({
@@ -27,8 +31,13 @@ import { AdminModule } from './admin/admin.module';
     ReviewModule,
     ForumModule,
     AdminModule,
+    ExpensesModule,
+    StaffModule,
+    IoTModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }
+
