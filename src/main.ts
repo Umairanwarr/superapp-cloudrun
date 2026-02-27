@@ -12,16 +12,13 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
   logger.log('⏳ Starting application...');
 
-  // Auto-sync database schema on every startup.
-  // • Development: `prisma db push` — applies any schema changes instantly, no migration files required.
-  // • Production:  `prisma migrate deploy` — applies only the committed migration files (safe, auditable).
+  // Auto-sync database schema on every startup using `db push`.
+  // Using --accept-data-loss ensures the process never hangs waiting for user input
+  // in Cloud Run, which causes the 'failed to listen on port' error.
   if (process.env.DATABASE_URL) {
-    const isProd = process.env.NODE_ENV === 'production';
-    const migrateCmd = isProd
-      ? 'npx prisma migrate deploy'
-      : 'npx prisma db push --accept-data-loss --skip-generate';
     try {
-      logger.log(`🔄 Syncing database schema (${isProd ? 'migrate deploy' : 'db push'})...`);
+      const migrateCmd = 'npx prisma db push --accept-data-loss --skip-generate';
+      logger.log(`🔄 Syncing database schema (db push)...`);
       execSync(migrateCmd, { stdio: 'inherit' });
       logger.log('✅ Database schema is up to date');
     } catch (e) {
